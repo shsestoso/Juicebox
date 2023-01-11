@@ -15,7 +15,11 @@ async function createTables() {
         await client.query(` CREATE TABLE users(
             id SERIAL PRIMARY KEY,
             username varchar(255) UNIQUE NOT NULL,
-            password varchar(255) NOT NULL
+            password varchar(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            location VARCHAR(255) NOT NULL,
+            active BOOLEAN DEFAULT true
+
         );
         `); 
         console.log("Finish building tables")
