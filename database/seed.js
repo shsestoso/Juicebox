@@ -1,5 +1,19 @@
-const {client, getAllUsers, createUser, updateUser
-, createPost, updatePost, getAllPosts, getPostsByUser, getUserById, createTags, addTagsToPost} = require ('./index');
+const {
+  client,
+  getAllUsers,
+  createUser,
+  updateUser,
+  createPost,
+  updatePost,
+  getAllPosts,
+  getPostsByUser,
+  getUserById,
+  createTags,
+  getPostById,
+  addTagsToPost,  
+  createPostTag, 
+  getPostsByTagName
+} = require ('./index');
 
 async function dropTables() {
     try {
@@ -74,13 +88,12 @@ async function createInitialUsers(){
 
 async function rebuildDB() {
     try {
-        client.connect();
+      client.connect();
 
-        await dropTables();
-        await createTables();
-        await createInitialUsers();
-        await createInitialPosts();
-        await createInitialTags()
+      await dropTables();
+      await createTables();
+      await createInitialUsers();
+      await createInitialPosts();
     } catch (error) {
         console.error(error);
     } 
@@ -93,49 +106,50 @@ async function createInitialPosts() {
       await createPost({
         authorId: albert.id,
         title: "First Post",
-        content: "This is my first post. I hope I love writing blogs as much as I love writing them."
+        content: "This is my first post. I hope I love writing blogs as much as I love writing them.", 
+        tags: ["#happy", "#youcandoanything"]
       });
       await createPost({
         authorId: sandra.id,
         title: "First Post",
-        content: "Content by sandra"
+        content: "Content by sandra",
+        tags: ["#happy", "#worst-day-ever"]
       });
       await createPost({
         authorId: glamgal.id,
         title: "First Post",
-        content: "Content by glamgal"
+        content: "Content by glamgal",
+        tags: ["#happy", "#youcandoanything", "#canmandoeverything"]
       });
   
-  
-      
     } catch (error) {
       throw error;
     }
   }
 
-  async function createInitialTags() {
-    try {
-      console.log("Starting to create tags...");
+  // async function createInitialTags() {
+  //   try {
+  //     console.log("Starting to create tags...");
   
-      const [happy, sad, inspo, catman] = await createTags([
-        '#happy', 
-        '#worst-day-ever', 
-        '#youcandoanything',
-        '#catmandoeverything'
-      ]);
+  //     const [happy, sad, inspo, catman] = await createTags([
+  //       '#happy', 
+  //       '#worst-day-ever', 
+  //       '#youcandoanything',
+  //       '#catmandoeverything'
+  //     ]);
   
-      const [postOne, postTwo, postThree] = await getAllPosts();
+  //     const [postOne, postTwo, postThree] = await getAllPosts();
   
-      await addTagsToPost(postOne.id, [happy, inspo]);
-      await addTagsToPost(postTwo.id, [sad, inspo]);
-      await addTagsToPost(postThree.id, [happy, catman, inspo]);
+  //     await addTagsToPost(postOne.id, [happy, inspo]);
+  //     await addTagsToPost(postTwo.id, [sad, inspo]);
+  //     await addTagsToPost(postThree.id, [happy, catman, inspo]);
   
-      console.log("Finished creating tags!");
-    } catch (error) {
-      console.log("Error creating tags!");
-      throw error;
-    }
-  }
+  //     console.log("Finished creating tags!");
+  //   } catch (error) {
+  //     console.log("Error creating tags!");
+  //     throw error;
+  //   }
+  // }
 
   async function testDB() {
     try {
@@ -161,6 +175,16 @@ async function createInitialPosts() {
         title: "New Title",
         content: "Updated Content"
       });
+      //Added update for tag only
+      console.log("Calling updatePost on posts[1], only updating tags");
+      const updatePostTagsResult = await updatePost(posts[1].id, {
+      tags: ["#youcandoanything", "#redfish", "#bluefish"]
+      });
+      console.log("Calling getPostsByTagName with #happy");
+      const postsWithHappy = await getPostsByTagName("#happy");
+      console.log("Result:", postsWithHappy);
+
+      console.log("Result:", updatePostTagsResult);
       console.log("Result:", updatePostResult);
   
       console.log("Calling getUserById with 1");

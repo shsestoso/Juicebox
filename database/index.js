@@ -61,64 +61,94 @@ async function updateUser(id, fields = {}) {
   async function createPost({
     authorId,
     title,
-    content
+    content, 
+    tags = []
   }) {
     try {
-        const {rows: [post]} = await client.query(
-            `INSERT INTO posts("authorId", title, content)
-            VALUES ($1, $2, $3) 
-            RETURNING *;`, [authorId, title, content]
-            );
-            return post;
+      const {rows: [post]} = await client.query(
+          `INSERT INTO posts("authorId", title, content)
+          VALUES ($1, $2, $3) 
+          RETURNING *;`, [authorId, title, content]
+      );
+      const tagList = await createTags(tags);
+
+      return await addTagsToPost(post.id, tagList);
     } catch (error) {
       throw error;
     }
   }
 
-  async function updatePost(id, fields = {}) {
+  async function updatePost(postId, fields = {}) {
+    const { tags } = fields;
+    delete fields.tags;
+    
+    
     // build the set string
     const setString = Object.keys(fields).map(
       (key, index) => `"${ key }"=$${ index + 1 }`
     ).join(', ');
-  
-    // return early if this is called without fields
-    if (setString.length === 0) {
-      return;
-    }
-  
+
     try {
-      const { rows: [ post ] } = await client.query(`
-        UPDATE posts
-        SET ${ setString }
-        WHERE id=${ id }
-        RETURNING *;
-      `, Object.values(fields));
-  
-      return post;
-    } catch (error) {
-      throw error;
-    }
-  }
-  async function getAllPosts() {
-    try {
-        const {rows} = await client.query(
-            `SELECT *
-            FROM posts;`
+      if (setString.length > 0) {
+        await client.query(`
+          UPDATE posts
+          SET ${ setString }
+          WHERE id=${ postId }
+          RETURNING *;  
+          `, Object.values(fields)
         );
-        return rows;
+      }
+      if(tags === undefined){
+        return await getPostById(postId);
+      }
+      const tagList = await createTags(tags);
+      const tagListIdString = tagList.map(
+        tag => `${tag.id}`
+      ).join(', ');
+      await client.query(
+        `DELETE FROM post_tags
+        WHERE "tagId"
+        NOT IN (${tagListIdString})
+        AND "postId"=$1;`, [postId]
+      );
+      await addTagsToPost(postId, tagList);
+      return await getPostById(postId);  
+
     } catch (error) {
       throw error;
     }
   }
 
+
+  async function getAllPosts() {
+    try {
+        const {rows: postIds} = await client.query(
+            `SELECT id 
+            FROM posts;`
+          );
+          const posts = await Promise.all(postIds.map(
+            post => getPostById(post.id)
+          ));
+        return posts;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+
   async function getPostsByUser(userId) {
     try {
-      const { rows } = await client.query(`
-        SELECT * FROM posts
+      const { rows: postIds } = await client.query(`
+        SELECT id
+        FROM posts
         WHERE "authorId"=${ userId };
       `);
+
+      const posts = await Promise.all(postIds.map(
+        post => getPostById(post.id)
+      ));
   
-      return rows;
+      return posts;
     } catch (error) {
       throw error;
     }
@@ -236,17 +266,36 @@ async function updateUser(id, fields = {}) {
     }
   }
 
+
+  async function getPostsByTagName(tagName) {
+    try {
+      const {rows: postIds} = await client.query(`
+        SELECT posts.id
+        FROM posts
+        JOIN post_tags ON posts.id=post_tags."postId"
+        JOIN tags ON tags.id=post_tags."tagId"
+        WHERE tags.name=$1;
+      `, [tagName]);
+      return await Promise.all(postIds.map(post => getPostById(post.id)
+      ));
+    } catch (error) {
+      throw error;
+    }
+  }
+
 module.exports = {
-    client,
-    getAllUsers,
-    createUser,
-    updateUser,
-    createPost,
-    updatePost,
-    getAllPosts,
-    getPostsByUser,
-    getUserById,
-    createTags,
-    getPostById,
-    addTagsToPost
+  client,
+  getAllUsers,
+  createUser,
+  updateUser,
+  createPost,
+  updatePost,
+  getAllPosts,
+  getPostsByUser,
+  getUserById,
+  createTags,
+  getPostById,
+  addTagsToPost,  
+  createPostTag, 
+  getPostsByTagName
 }
