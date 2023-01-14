@@ -1,5 +1,5 @@
 const {client, getAllUsers, createUser, updateUser
-, createPost, updatePost, getAllPosts, getPostsByUser, getUserById} = require ('./index');
+, createPost, updatePost, getAllPosts, getPostsByUser, getUserById, createTags, addTagsToPost} = require ('./index');
 
 async function dropTables() {
     try {
@@ -30,7 +30,7 @@ async function createTables() {
         );
         CREATE TABLE posts (
             id SERIAL PRIMARY KEY,
-            "authorId" INTEGER REFERENCES users(id),
+            "authorId" INTEGER REFERENCES users(id) NOT NULL,
             title varchar(255) NOT NULL,
             content TEXT NOT NULL,
             active BOOLEAN DEFAULT true
@@ -40,15 +40,16 @@ async function createTables() {
                 name VARCHAR(255) UNIQUE NOT NULL
         );
         CREATE TABLE post_tags(
-            "postId" INTEGER REFERENCES posts(id) UNIQUE,
-            "tagId" INTEGER REFERENCES tags(id) UNIQUE
+            "postId" INTEGER REFERENCES posts(id) NOT NULL,
+            "tagId" INTEGER REFERENCES tags(id) NOT NULL,
+            UNIQUE ("postId", "tagId")
 
         )
         `); 
         console.log("Finish building tables")
     } catch (error) {
         console.error("Error building tables!")
-        throw error;
+        console.log(error)
     }
 }
 
@@ -78,7 +79,8 @@ async function rebuildDB() {
         await dropTables();
         await createTables();
         await createInitialUsers();
-        await createInitialPosts()
+        await createInitialPosts();
+        await createInitialTags()
     } catch (error) {
         console.error(error);
     } 
@@ -107,6 +109,30 @@ async function createInitialPosts() {
   
       
     } catch (error) {
+      throw error;
+    }
+  }
+
+  async function createInitialTags() {
+    try {
+      console.log("Starting to create tags...");
+  
+      const [happy, sad, inspo, catman] = await createTags([
+        '#happy', 
+        '#worst-day-ever', 
+        '#youcandoanything',
+        '#catmandoeverything'
+      ]);
+  
+      const [postOne, postTwo, postThree] = await getAllPosts();
+  
+      await addTagsToPost(postOne.id, [happy, inspo]);
+      await addTagsToPost(postTwo.id, [sad, inspo]);
+      await addTagsToPost(postThree.id, [happy, catman, inspo]);
+  
+      console.log("Finished creating tags!");
+    } catch (error) {
+      console.log("Error creating tags!");
       throw error;
     }
   }
